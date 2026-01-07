@@ -67,6 +67,10 @@ class StateManager:
         self.notified_issues[repo].add(issue_number)
         self.save_state()
     
+    def is_repo_initialized(self, repo: str) -> bool:
+        """Check if a repository has been initialized (has any tracked issues)."""
+        return repo in self.notified_issues and len(self.notified_issues[repo]) > 0
+    
     def get_new_issues(self, repo: str, issues: list) -> list:
         """Filter out issues that have already been notified for a specific repo."""
         return [

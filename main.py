@@ -83,11 +83,17 @@ def main():
                 repo=repo,
                 author=Config.AUTHOR_NAME
             )
-            print(f"  ✓ {repo}: Found {len(issues)} open issue(s)")
             
-            # Mark existing issues as notified (don't alert on startup)
-            for issue in issues:
-                state.mark_notified(repo, issue.get("number"))
+            # Check if this is the first run for this repo
+            is_first_run = not state.is_repo_initialized(repo)
+            
+            if is_first_run:
+                print(f"  ✓ {repo}: First run - marking {len(issues)} existing issue(s) as notified (no alerts)")
+                # Mark existing issues as notified (don't alert on startup)
+                for issue in issues:
+                    state.mark_notified(repo, issue.get("number"))
+            else:
+                print(f"  ✓ {repo}: Found {len(issues)} open issue(s) (already initialized)")
         except GitHubError as e:
             print(f"  ⚠️  {repo}: {e}")
         except Exception as e:
