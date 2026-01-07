@@ -37,27 +37,38 @@ def main():
                 author=Config.AUTHOR_NAME
             )
             
-            new_issues = state.get_new_issues(repo, issues)
+            # Check if this is the first run for this repo (no state exists)
+            is_first_run = not state.is_repo_initialized(repo)
             
-            if new_issues:
-                print(f"[{repo}] Found {len(new_issues)} new issue(s)!")
-                total_new += len(new_issues)
-                
-                # Send alerts for new issues
-                for issue in new_issues:
-                    issue_number = issue.get("number")
-                    print(f"  Sending alert for issue #{issue_number}...")
-                    
-                    message = telegram.format_issue_alert(issue, repo)
-                    success = telegram.send_message(message)
-                    
-                    if success:
-                        state.mark_notified(repo, issue_number)
-                        print(f"  ✓ Alert sent for issue #{issue_number}")
-                    else:
-                        print(f"  ✗ Failed to send alert for issue #{issue_number}")
+            if is_first_run:
+                # First run: mark all existing issues as notified without sending alerts
+                print(f"[{repo}] First run detected - marking {len(issues)} existing issue(s) as notified (no alerts sent)")
+                for issue in issues:
+                    state.mark_notified(repo, issue.get("number"))
+                print(f"[{repo}] Initialized. Future runs will only alert on new issues.")
             else:
-                print(f"[{repo}] No new issues (checked {len(issues)} total)")
+                # Subsequent runs: only alert on new issues
+                new_issues = state.get_new_issues(repo, issues)
+                
+                if new_issues:
+                    print(f"[{repo}] Found {len(new_issues)} new issue(s)!")
+                    total_new += len(new_issues)
+                    
+                    # Send alerts for new issues
+                    for issue in new_issues:
+                        issue_number = issue.get("number")
+                        print(f"  Sending alert for issue #{issue_number}...")
+                        
+                        message = telegram.format_issue_alert(issue, repo)
+                        success = telegram.send_message(message)
+                        
+                        if success:
+                            state.mark_notified(repo, issue_number)
+                            print(f"  ✓ Alert sent for issue #{issue_number}")
+                        else:
+                            print(f"  ✗ Failed to send alert for issue #{issue_number}")
+                else:
+                    print(f"[{repo}] No new issues (checked {len(issues)} total)")
                 
         except GitHubError as e:
             print(f"⚠️  [{repo}] Error: {e}")
