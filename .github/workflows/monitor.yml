@@ -26,11 +26,10 @@ jobs:
         pip install -r requirements.txt
     
     - name: Download state from previous run
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: issue-monitor-state
         path: .
-        if-no-find: ignore
       continue-on-error: true
     
     - name: Run single check
@@ -45,10 +44,10 @@ jobs:
         python check_once.py
     
     - name: Upload state for next run
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: issue-monitor-state
         path: state.json
         retention-days: 30
-        if-no-find: ignore
+      if: always()
 
