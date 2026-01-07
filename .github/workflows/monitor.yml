@@ -1,0 +1,38 @@
+name: GitHub Issue Monitor
+
+on:
+  schedule:
+    # Run every 15 minutes (checks for new issues)
+    - cron: '*/15 * * * *'
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5  # Prevent long-running jobs
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    - name: Run single check
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+        TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        REPO_NAMES: ${{ secrets.REPO_NAMES }}
+        AUTHOR_NAME: ${{ secrets.AUTHOR_NAME }}
+        POLL_INTERVAL: ${{ secrets.POLL_INTERVAL || '900' }}
+      run: |
+        python check_once.py
+
