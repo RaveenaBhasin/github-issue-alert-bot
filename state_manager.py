@@ -71,6 +71,40 @@ class StateManager:
         """Check if a repository has been initialized (has any tracked issues)."""
         return repo in self.notified_issues and len(self.notified_issues[repo]) > 0
     
+    def sync_state_with_current_issues(self, repo: str, current_issues: list) -> None:
+        """
+        Sync state with current issues - mark all current issues as notified.
+        Used when state appears stale or on first run.
+        """
+        current_issue_numbers = {issue.get("number") for issue in current_issues}
+        if repo not in self.notified_issues:
+            self.notified_issues[repo] = set()
+        # Update to include all current issues
+        self.notified_issues[repo] = current_issue_numbers
+        self.save_state()
+    
+    def is_state_stale(self, repo: str, current_issues: list, threshold: float = 0.5) -> bool:
+        """
+        Check if state appears stale - if most tracked issues don't exist in current list.
+        Returns True if state should be re-synced.
+        """
+        if repo not in self.notified_issues or len(self.notified_issues[repo]) == 0:
+            return True
+        
+        current_issue_numbers = {issue.get("number") for issue in current_issues}
+        tracked_issues = self.notified_issues[repo]
+        
+        # Count how many tracked issues still exist
+        still_exist = len(tracked_issues & current_issue_numbers)
+        total_tracked = len(tracked_issues)
+        
+        # If less than threshold% of tracked issues still exist, state is stale
+        if total_tracked > 0:
+            ratio = still_exist / total_tracked
+            return ratio < threshold
+        
+        return True
+    
     def get_new_issues(self, repo: str, issues: list) -> list:
         """Filter out issues that have already been notified for a specific repo."""
         return [

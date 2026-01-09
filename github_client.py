@@ -94,6 +94,9 @@ class GitHubClient:
                 if not issues:
                     break
                 
+                # Filter out pull requests (PRs have a 'pull_request' field)
+                issues = [issue for issue in issues if "pull_request" not in issue]
+                
                 # Filter by author if specified
                 if author:
                     issues = [issue for issue in issues if issue.get("user", {}).get("login") == author]

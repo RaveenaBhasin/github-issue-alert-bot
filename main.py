@@ -86,12 +86,15 @@ def main():
             
             # Check if this is the first run for this repo
             is_first_run = not state.is_repo_initialized(repo)
+            is_stale = state.is_state_stale(repo, issues) if not is_first_run else False
             
-            if is_first_run:
-                print(f"  ✓ {repo}: First run - marking {len(issues)} existing issue(s) as notified (no alerts)")
-                # Mark existing issues as notified (don't alert on startup)
-                for issue in issues:
-                    state.mark_notified(repo, issue.get("number"))
+            if is_first_run or is_stale:
+                if is_stale:
+                    print(f"  ✓ {repo}: Stale state - re-syncing with {len(issues)} current issue(s) (no alerts)")
+                else:
+                    print(f"  ✓ {repo}: First run - marking {len(issues)} existing issue(s) as notified (no alerts)")
+                # Sync state with current issues (don't alert on startup)
+                state.sync_state_with_current_issues(repo, issues)
             else:
                 print(f"  ✓ {repo}: Found {len(issues)} open issue(s) (already initialized)")
         except GitHubError as e:

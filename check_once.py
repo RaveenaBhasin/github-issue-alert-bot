@@ -40,33 +40,45 @@ def main():
             # Check if this is the first run for this repo (no state exists)
             is_first_run = not state.is_repo_initialized(repo)
             
-            if is_first_run:
-                # First run: mark all existing issues as notified without sending alerts
-                print(f"[{repo}] First run detected - marking {len(issues)} existing issue(s) as notified (no alerts sent)")
-                for issue in issues:
-                    state.mark_notified(repo, issue.get("number"))
+            # Check if state appears stale (most tracked issues don't exist anymore)
+            is_stale = state.is_state_stale(repo, issues) if not is_first_run else False
+            
+            if is_first_run or is_stale:
+                # First run or stale state: mark all existing issues as notified without sending alerts
+                if is_stale:
+                    print(f"[{repo}] Stale state detected - re-syncing with {len(issues)} current issue(s) (no alerts sent)")
+                else:
+                    print(f"[{repo}] First run detected - marking {len(issues)} existing issue(s) as notified (no alerts sent)")
+                
+                state.sync_state_with_current_issues(repo, issues)
                 print(f"[{repo}] Initialized. Future runs will only alert on new issues.")
             else:
                 # Subsequent runs: only alert on new issues
                 new_issues = state.get_new_issues(repo, issues)
                 
                 if new_issues:
-                    print(f"[{repo}] Found {len(new_issues)} new issue(s)!")
-                    total_new += len(new_issues)
-                    
-                    # Send alerts for new issues
-                    for issue in new_issues:
-                        issue_number = issue.get("number")
-                        print(f"  Sending alert for issue #{issue_number}...")
+                    # Safety check: if too many "new" issues, state might be stale
+                    if len(new_issues) > len(issues) * 0.8:  # More than 80% are "new"
+                        print(f"[{repo}] Warning: {len(new_issues)} out of {len(issues)} issues appear new. Re-syncing state to prevent spam.")
+                        state.sync_state_with_current_issues(repo, issues)
+                        print(f"[{repo}] State re-synced. No alerts sent this run.")
+                    else:
+                        print(f"[{repo}] Found {len(new_issues)} new issue(s)!")
+                        total_new += len(new_issues)
                         
-                        message = telegram.format_issue_alert(issue, repo)
-                        success = telegram.send_message(message)
-                        
-                        if success:
-                            state.mark_notified(repo, issue_number)
-                            print(f"  ✓ Alert sent for issue #{issue_number}")
-                        else:
-                            print(f"  ✗ Failed to send alert for issue #{issue_number}")
+                        # Send alerts for new issues
+                        for issue in new_issues:
+                            issue_number = issue.get("number")
+                            print(f"  Sending alert for issue #{issue_number}...")
+                            
+                            message = telegram.format_issue_alert(issue, repo)
+                            success = telegram.send_message(message)
+                            
+                            if success:
+                                state.mark_notified(repo, issue_number)
+                                print(f"  ✓ Alert sent for issue #{issue_number}")
+                            else:
+                                print(f"  ✗ Failed to send alert for issue #{issue_number}")
                 else:
                     print(f"[{repo}] No new issues (checked {len(issues)} total)")
                 
